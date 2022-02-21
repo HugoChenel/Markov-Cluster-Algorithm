@@ -1,0 +1,430 @@
+---
+title: "Projet Math MCL"
+author: "CHENEL Hugo"
+date: "10/11/2020"
+output: 
+   html_document: 
+      toc: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+
+<p style="border:1px; border-style:solid; border-color:#000000; padding: 1em;">
+PROJET MATH - MCL
+</p>
+
+
+# **MCL**
+
+```{r}
+library(igraph)
+```
+
+
+## Implémentation de MCL - Fonctions réalisées et commentées
+### add_loops
+La fonction add_loops(M) prend en paramètre une matrice d’adjacence et renvoie la même matrice à laquelle sont ajoutées les boucles. La fonction supposera que la matrice d’adjacence est composée de 0 et de 1.
+```{r}
+add_loops = function(M) { 
+  diag(M)=1
+  M
+}
+# Le lien (arrête) d'un sommet vers lui-même est définit comme une boucle. Cela correspond à la diagonale de la matrice. On affecte donc la valeur 1 à la diagonale de la matrice.
+```
+
+### make_stochastic
+La fonction make_stochastic(M) prend en paramètre une matrice d’adjacence et renvoie la matrice stochastique correspondante.
+```{r}
+make_stochastic = function(M) {
+  M_stoch = t(apply(M, 1, function(x) x/(sum(x)+1e-15)))
+  M_stoch
+}
+# On divise la valeur de la case par la somme des valeurs de l'ensemble des cases de la ligne.
+```
+
+### expansion
+La fonction expansion(M) prend en paramètre une matrice stochastique et renvoie la matrice après l’opération d’expansion.
+```{r}
+expansion = function(M){
+  M_exp = M %*% M 
+  M_exp
+}
+# On multiplie la matrice par elle-même, il s'agit d'un produit matriciel.
+```
+
+### inflation
+La fonction inflation(M, inflate=2) prend en paramètre la matrice renvoyée par la fonction précédente et renvoie la matrice après l’opération d’inflation. Elle prend également le paramètre inflate correspondant à l’inflate factor (et qui par défaut sera de 2)
+```{r}
+inflation = function (M, inflate=2){
+  M_inf = M**inflate # Les valeurs de la matrice sont amenés à la puissance inflate.
+  M_inf = make_stochastic(M_inf) # Notre matrice devient stochastique.
+  M_inf
+}
+```
+
+### chaos
+Pour détecter s'il y a eu un changement, on utilise la fonction chaos calculant la valeur suivante :
+Soit la valeur maximale sur une ligne, soit sum_sq la somme des valeurs de la ligne élevées au carré (chaque élément est élevé au carré puis on en fait la somme)
+-> on a donc row_chaos = max - sum_sq : différence entre le maximum de la ligne et la somme des carrées des éléments pour chaque ligne
+```{r}
+chaos = function(M){
+  max=apply(M, 1, max) # Permet d'obtenir la valeur maximale sur une ligne.
+  sum_sq=apply(M, 1, function(x) sum(x**2)) # Permet d'obtenir la somme des valeurs de la ligne élevée au carré.
+  row_chaos = max(max-sum_sq) # correspond à la différence entre le maximum de la ligne et la somme des carrées des éléments de chaque ligne. On renvoie la valeur observée la plus forte  sur les lignes.
+  row_chaos
+}
+```
+
+OU
+
+```{r}
+chaos = function(M){
+  row_chaos = max(apply(M, 1, function(x) max(x)-sum(x**2))) 
+  row_chaos
+}
+```
+
+
+
+
+
+## Fonction MCL
+
+La fonction MCL(M, inflate=2) prend en paramètre une matrice d’adjacence (avec des 0 et des 1) et l’inflate factor (par défaut 2), et renvoie la matrice d’adjacence (arrondie à 3 chiffres après la virgule) après application de l’algorithme de MCL.
+
+```{r}
+MCL = function (M, inflate=2){
+  M2=add_loops(M)
+  M2=make_stochastic(M2)
+  change=1
+  while (change > 0.001){
+    M2=expansion(M2)
+    M2=inflation(M2, inflate)
+    change=chaos(M2)
+  }
+  round(M2, 3)
+}
+```
+
+
+### Chargement du graphe gtoy
+```{r}
+gtoy = read.graph('http://silico.biotoul.fr/enseignement/m1/math/projet/toy.tgr', format='ncol', directed=FALSE)
+
+plot(gtoy)
+V(gtoy)
+E(gtoy)
+plot(gtoy, vertex.color='white', edge.width=E(gtoy)$weight)
+
+```
+
+
+
+### Clustering du graphe gtoy avec un inflate factor variable
+
+*Pour un inflate factor ayant une valeur de 1,5*
+```{r}
+m = MCL(get.adjacency(gtoy), inflate=1.5)
+gtoy_1.5 = graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(gtoy_1.5)
+```
+
+```{r}
+plot(gtoy_1.5, vertex.color=clusters(gtoy_1.5)$membership, main='Composantes connexes')
+plot(gtoy, vertex.color=clusters(gtoy_1.5)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 2*
+```{r}
+m = MCL(get.adjacency(gtoy), inflate=2)
+gtoy_2=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(gtoy_2)
+```
+
+```{r}
+plot(gtoy_2, vertex.color=clusters(gtoy_2)$membership, main='Composantes connexes')
+plot(gtoy, vertex.color=clusters(gtoy_2)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 5*
+```{r}
+m = MCL(get.adjacency(gtoy), inflate=5)
+gtoy_5=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(gtoy_5)
+```
+
+```{r}
+plot(gtoy_5, vertex.color=clusters(gtoy_5)$membership, main='Composantes connexes')
+plot(gtoy, vertex.color=clusters(gtoy_5)$membership, main='Visualisation des clusters')
+```
+
+*Pour un inflate factor ayant une valeur de 10*
+```{r}
+m = MCL(get.adjacency(gtoy), inflate=10)
+gtoy_10=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(gtoy_10)
+```
+
+```{r}
+plot(gtoy_10, vertex.color=clusters(gtoy_10)$membership, main='Composantes connexes')
+plot(gtoy, vertex.color=clusters(gtoy_10)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 15*
+```{r}
+m = MCL(get.adjacency(gtoy), inflate=15)
+gtoy_15=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(gtoy_15)
+```
+
+```{r}
+plot(gtoy_15, vertex.color=clusters(gtoy_15)$membership, main='Composantes connexes')
+plot(gtoy, vertex.color=clusters(gtoy_15)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 25*
+```{r}
+m = MCL(get.adjacency(gtoy), inflate=25)
+gtoy_25=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(gtoy_25)
+```
+
+```{r}
+plot(gtoy_25, vertex.color=clusters(gtoy_25)$membership, main='Composantes connexes')
+plot(gtoy, vertex.color=clusters(gtoy_25)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 50*
+```{r}
+m = MCL(get.adjacency(gtoy), inflate=50)
+gtoy_50=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(gtoy_50)
+```
+
+```{r}
+plot(gtoy_50, vertex.color=clusters(gtoy_50)$membership, main='Composantes connexes')
+plot(gtoy, vertex.color=clusters(gtoy_50)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 100*
+```{r}
+m = MCL(get.adjacency(gtoy), inflate=100)
+gtoy_100=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(gtoy_100)
+```
+
+```{r}
+plot(gtoy_100, vertex.color=clusters(gtoy_100)$membership, main='Composantes connexes')
+plot(gtoy, vertex.color=clusters(gtoy_100)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 200*
+```{r}
+m = MCL(get.adjacency(gtoy), inflate=200)
+gtoy_200=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(gtoy_200)
+```
+
+```{r}
+plot(gtoy_200, vertex.color=clusters(gtoy_200)$membership, main='Composantes connexes')
+plot(gtoy, vertex.color=clusters(gtoy_200)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 500*
+```{r}
+m = MCL(get.adjacency(gtoy), inflate=500)
+gtoy_500=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(gtoy_500)
+```
+
+```{r}
+plot(gtoy_500, vertex.color=clusters(gtoy_500)$membership, main='Composantes connexes')
+plot(gtoy, vertex.color=clusters(gtoy_500)$membership, main='Visualisation des clusters')
+```
+
+
+
+### Exploitation des résultats
+
+```{r}
+InflateFactor=c(1.5, 2, 5, 10, 15, 25, 50, 100)
+ClusterNumber=c(clusters(gtoy_1.5)$no, clusters(gtoy_2)$no, clusters(gtoy_5)$no, clusters(gtoy_10)$no, clusters(gtoy_15)$no, clusters(gtoy_25)$no, clusters(gtoy_50)$no, clusters(gtoy_100)$no)
+
+plot(InflateFactor, ClusterNumber, pch=16, col='red', main="Evolution du nombre de cluster en fonction de l'inflate factor")
+```
+
+
+
+
+### Chargement du graphe du projet
+```{r}
+g4 = read.graph('http://silico.biotoul.fr/enseignement/m1/math/projet/g4.gr', format='ncol', directed=FALSE)
+
+plot(g4)
+V(g4)
+E(g4)
+plot(g4, vertex.color='white', edge.width=E(gtoy)$weight)
+```
+
+
+
+### Clustering du graphe du projet avec un inflate factor variable
+
+*Pour un inflate factor ayant une valeur de 1,27*
+```{r}
+m = MCL(get.adjacency(g4), inflate=1.27)
+g4_1.27=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(g4_1.27)
+```
+
+```{r}
+plot(g4_1.27, vertex.color=clusters(g4_1.27)$membership, main='Composantes connexes')
+plot(g4, vertex.color=clusters(g4_1.27)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 2*
+```{r}
+m = MCL(get.adjacency(g4), inflate=2)
+g4_2=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(g4_2)
+```
+
+```{r}
+plot(g4_2, vertex.color=clusters(g4_2)$membership, main='Composantes connexes')
+plot(g4, vertex.color=clusters(g4_2)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 5*
+```{r}
+m = MCL(get.adjacency(g4), inflate=5)
+g4_5=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(g4_5)
+```
+
+```{r}
+plot(g4_5, vertex.color=clusters(g4_5)$membership, main='Composantes connexes')
+plot(g4, vertex.color=clusters(g4_5)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 10*
+```{r}
+m = MCL(get.adjacency(g4), inflate=10)
+g4_10=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(g4_10)
+```
+
+```{r}
+plot(g4_10, vertex.color=clusters(g4_10)$membership, main='Composantes connexes')
+plot(g4, vertex.color=clusters(g4_10)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 15*
+```{r}
+m = MCL(get.adjacency(g4), inflate=15)
+g4_15=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(g4_15)
+```
+
+```{r}
+plot(g4_15, vertex.color=clusters(g4_15)$membership, main='Composantes connexes')
+plot(g4, vertex.color=clusters(g4_15)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 30*
+```{r}
+m = MCL(get.adjacency(g4), inflate=30)
+g4_30=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(g4_30)
+```
+
+```{r}
+plot(g4_30, vertex.color=clusters(g4_30)$membership, main='Composantes connexes')
+plot(g4, vertex.color=clusters(g4_30)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 50*
+```{r}
+m = MCL(get.adjacency(g4), inflate=50)
+g4_50=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(g4_50)
+```
+
+```{r}
+plot(g4_50, vertex.color=clusters(g4_50)$membership, main='Composantes connexes')
+plot(g4, vertex.color=clusters(g4_50)$membership, main='Visualisation des clusters')
+```
+
+
+*Pour un inflate factor ayant une valeur de 100*
+```{r}
+m = MCL(get.adjacency(g4), inflate=100)
+g4_100=graph.adjacency(m, mode = 'undirected', weighted = TRUE)
+clusters(g4_100)
+```
+
+```{r}
+plot(g4_100, vertex.color=clusters(g4_100)$membership, main='Composantes connexes')
+plot(g4, vertex.color=clusters(g4_100)$membership, main='Visualisation des clusters')
+```
+
+
+
+### Exploitation des résultats
+
+```{r}
+InflateFactor=c(1.27, 2, 5, 10, 15, 30, 50, 100)
+ClusterNumber=c(clusters(g4_1.27)$no, clusters(g4_2)$no, clusters(g4_5)$no, clusters(g4_10)$no, clusters(g4_15)$no, clusters(g4_30)$no, clusters(g4_50)$no, clusters(g4_100)$no)
+
+plot(InflateFactor, ClusterNumber, pch=16, col='red', main="Evolution du nombre de cluster en fonction de l'inflate factor")
+```
+
+
+
+
+# QUESTIONS
+
+## Que se passe-t-il quand on augmente l’inflate factor ?
+
+Plus l'inflate facteur est fort, plus le nombre de cluster est élevé. Cette augmentation est brutale pour un inflate factor allant de 1 à 25 puis atteint son seuil maximal de cluster. Chaque sommet appartient à un cluster lui étant propre. Cette valeur correspond à 35 clusters pour gtoy et 250 pour le graphe 4.
+
+## Quelle est la valeur minimale pour ce paramètre ?
+
+Lors de la création de la fonction inflation, les valeurs de la matrice sont amenées à la puissance inflate. Si cette dernière est inférieure à 1, le clustering correspondra à un seul et unique cluster tandis que si l'inflate est égal à 1, alors 'M_inf = M**inflate', on est alors dans une boucle infinie lors de l'exécution de la fonction MCL.
+L'inflate factor doit alors être strictement supérieur à 1.
+
+## Quelle est la valeur maximale pour ce paramètre ?
+
+D'après les résultats, à partir d'un certain inflate factor, il n'y a plus d'augmentation du nombre de clusters (on observe une courbe de type ln). Cela correspond à l'individualisation des sommets dans des clusters différents. On considère que la valeur maximale de l’inflate factor est 25 afin que le clustering soit intéressant.
+
+## Quel est, selon vous, le meilleur IF pour ces graphes ? Et pourquoi ?
+
+L'objectif du clustering est de diviser un ensemble de données en différents paquets homogènes. Les données de chaque sous ensemble partageant des caractéristiques communes.
+L’augmentation de la valeur de l’inflate factor permet une diminution de la densité de clusters. Cependant, il est nécessaire de borner les valeurs de l'inflate factor car à partir d'un certain seuil il y a une individualisation de chaque sommet (non souhaitable car on utilise le clustering pour rechercher les caractéristiques communes). A l'inverse une valeur trop faible de l'inflate factor correspond à un nombre de cluster extrèmement bas mais ces clusters ont une taille importante. Les objets seront alors très variables au sein d'un même cluster.
+
+On cherche donc le 'sweet spot', une valeur d'inflate factor suffisamment élevée qui ne dépasse pas le seuil fixé.
+Dans le cas du graphe gtoy, la visualisation des clusters est satisfaisante pour un inflate factor égal à 2. En effet, les couleurs sont bien individualsées et on observe distinctement 4 clusters ayant une taille satisfaisante.
+Dans le cas du graphe G4, un inflate factor idéal semble être 1,27. C'est la valeur pour laquelle on observe un découpage clair et des groupes bien individualisés. Il y a au total 5 clusters de taille correct.
+
+## Comment, selon vous, le déterminer ?
+
+La coloration des sommets en fonction des clusters est une approche efficace pour déterminer la valeur d’inflate factor optimale. Cela nous donne une idée de l'homogénéité. On repère aisément les éventuels sommets hors de leur cluster grâce au code couleur. Le désavantage de cette méthode est le coût : il est nécessaire de réaliser des calculs avec de nombreuses valeurs d’inflate factor afin de comparer les graphes.
+
+## Conclusion
+
+J'ai rencontré des difficultés au départ avec la notion de graphe. Les cours effectués depuis m'ont éclairé. J'ai maintenant compris le lien entre matrice et graphe.
+La méthode MCL est une méthode rapide et efficace de clustering. Son application est large, que ce soit pour le traitement de données biologiques ou non. Une application biologique pourrait être l'étude protéomique au sein d'un organisme.
