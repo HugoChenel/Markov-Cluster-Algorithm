@@ -426,5 +426,4 @@ La coloration des sommets en fonction des clusters est une approche efficace pou
 
 ## Conclusion
 
-J'ai rencontré des difficultés au départ avec la notion de graphe. Les cours effectués depuis m'ont éclairé. J'ai maintenant compris le lien entre matrice et graphe.
 La méthode MCL est une méthode rapide et efficace de clustering. Son application est large, que ce soit pour le traitement de données biologiques ou non. Une application biologique pourrait être l'étude protéomique au sein d'un organisme.
